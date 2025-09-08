@@ -1,84 +1,134 @@
-import React, { useState } from "react";
-import { FaPaperPlane } from "react-icons/fa";
+import React, { useState, useEffect, useRef } from "react";
 
-function Chat({ username, onLogout }) {
-  const [messages, setMessages] = useState([
-    { from: "me", text: "Hey there! 👋" },
-    { from: "xyz", text: "Hi! How are you?" },
-  ]);
-  const [newMessage, setNewMessage] = useState("");
+function Chat({ username }) {
+  const [users, setUsers] = useState([]);
+  const [recipient, setRecipient] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const ws = useRef(null);
+
+  // 1️⃣ Fetch current user ID based on username
+  useEffect(() => {
+    const fetchUserId = async () => {
+      const res = await fetch(`http://127.0.0.1:8000/login?username=${username}`);
+      const data = await res.json();
+      setUserId(data.userId);
+    };
+    fetchUserId();
+  }, [username]);
+
+  // 2️⃣ Fetch all users (for selection)
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const res = await fetch("http://127.0.0.1:8000/users");
+      const data = await res.json();
+      // Remove current user from list
+      setUsers(data.filter((u) => u.username !== username));
+    };
+    fetchUsers();
+  }, [username]);
+
+  // 3️⃣ WebSocket setup
+  useEffect(() => {
+    if (!userId || !recipient) return;
+
+    ws.current = new WebSocket(`ws://127.0.0.1:8000/ws/${userId}`);
+
+    ws.current.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (
+        (data.sender_id === userId && data.recipient_id === recipient.id) ||
+        (data.sender_id === recipient.id && data.recipient_id === userId)
+      ) {
+        setMessages((prev) => [...prev, data]);
+      }
+    };
+
+    return () => ws.current?.close();
+  }, [userId, recipient]);
+
+  // 4️⃣ Fetch messages with selected recipient
+  useEffect(() => {
+    if (!userId || !recipient) return;
+    const fetchMessages = async () => {
+      const res = await fetch(`http://127.0.0.1:8000/messages/${userId}/${recipient.id}`);
+      const data = await res.json();
+      setMessages(data);
+    };
+    fetchMessages();
+  }, [recipient, userId]);
 
   const sendMessage = () => {
-    if (newMessage.trim() !== "") {
-      setMessages([...messages, { from: "me", text: newMessage }]);
-      setNewMessage("");
+    if (!input.trim()) return;
+    if (ws.current.readyState === WebSocket.OPEN) {
+      const message = {
+        sender_id: userId,
+        recipient_id: recipient.id,
+        content: input,
+      };
+      ws.current.send(JSON.stringify(message));
+      setMessages((prev) => [...prev, { ...message, timestamp: new Date() }]);
+      setInput("");
     }
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-900 text-white">
-      {/* Navbar */}
-      <nav className="flex justify-between items-center p-4 bg-gray-800 shadow-md">
-        <h1 className="text-xl font-bold text-blue-400">ChatApp</h1>
-        <div className="flex items-center space-x-4">
-          <span className="text-gray-300">Logged in as: {username}</span>
-          <button
-            onClick={onLogout}
-            className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-sm"
-          >
-            Logout
-          </button>
+    <div className="chat-container flex flex-col h-full p-4 bg-gray-900 text-white">
+      <h2>Welcome, {username}</h2>
+
+      {!recipient && (
+        <div>
+          <p>Select a user to chat with:</p>
+          {users.map((u) => (
+            <button
+              key={u.id}
+              onClick={() => setRecipient(u)}
+              className="bg-blue-500 m-1 p-2 rounded hover:bg-blue-600"
+            >
+              {u.username}
+            </button>
+          ))}
         </div>
-      </nav>
+      )}
 
-      {/* Chat Area */}
-      <main className="flex-1 flex">
-        {/* Sidebar (Active Users) */}
-        <aside className="hidden md:flex flex-col w-60 bg-gray-800 p-4 border-r border-gray-700">
-          <h2 className="text-lg font-semibold mb-4">Active Users</h2>
-          <ul className="space-y-2">
-            <li className="text-gray-300">xyz</li>
-            <li className="text-gray-300">abc</li>
-            <li className="text-gray-300">guest123</li>
-          </ul>
-        </aside>
-
-        {/* Messages Section */}
-        <section className="flex-1 flex flex-col">
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      {recipient && (
+        <>
+          <h3>Chatting with {recipient.username}</h3>
+          <div className="messages flex-1 overflow-y-auto mb-4">
             {messages.map((msg, idx) => (
               <div
                 key={idx}
-                className={`max-w-xs px-4 py-2 rounded-lg ${
-                  msg.from === "me"
-                    ? "ml-auto bg-blue-500 text-white"
-                    : "mr-auto bg-gray-700 text-gray-200"
+                className={`p-2 my-1 rounded ${
+                  msg.sender_id === userId ? "bg-blue-500 self-end" : "bg-gray-700 self-start"
                 }`}
               >
-                {msg.text}
+                {msg.content}
+                <div className="text-xs text-gray-300">
+                  {new Date(msg.timestamp).toLocaleTimeString()}
+                </div>
               </div>
             ))}
           </div>
 
-          {/* Message Input */}
-          <div className="flex items-center p-4 bg-gray-800 border-t border-gray-700">
+          <div className="input flex">
             <input
               type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && sendMessage()}
               placeholder="Type a message..."
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              className="flex-1 p-2 rounded bg-gray-700 text-white placeholder-gray-400 focus:outline-none"
+              className="flex-1 p-2 rounded-l bg-gray-800 text-white focus:outline-none"
             />
             <button
               onClick={sendMessage}
-              className="ml-2 bg-blue-500 hover:bg-blue-600 p-3 rounded"
+              className="bg-blue-500 px-4 rounded-r hover:bg-blue-600"
             >
-              <FaPaperPlane />
+              Send
             </button>
           </div>
-        </section>
-      </main>
+        </>
+      )}
     </div>
   );
 }

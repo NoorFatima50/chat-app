@@ -5,7 +5,10 @@ function Landing({ onLogin }) {
   const [username, setUsername] = useState("");
 
   const handleLogin = () => {
-    if (username.trim() !== "") onLogin(username);
+    if (username.trim() !== "") {
+      // Send username to parent component as userId
+      onLogin(username);
+    }
   };
 
   // Smooth scroll function
@@ -19,15 +22,27 @@ function Landing({ onLogin }) {
 
       {/* Navbar */}
       <nav className="flex justify-between items-center p-6 bg-gray-800 shadow-md sticky top-0 z-50">
-        <h1 className="text-2xl font-bold text-blue-400 cursor-pointer" onClick={() => scrollToSection("hero")}>ChatApp</h1>
+        <h1
+          className="text-2xl font-bold text-blue-400 cursor-pointer"
+          onClick={() => scrollToSection("hero")}
+        >
+          ChatApp
+        </h1>
         <div className="space-x-4">
-          <button onClick={() => scrollToSection("features")} className="hover:text-blue-300">Features</button>
-          <button onClick={() => scrollToSection("login")} className="hover:text-blue-300">Login</button>
+          <button onClick={() => scrollToSection("features")} className="hover:text-blue-300">
+            Features
+          </button>
+          <button onClick={() => scrollToSection("login")} className="hover:text-blue-300">
+            Login
+          </button>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <main id="hero" className="flex-1 flex flex-col md:flex-row items-center justify-center p-10 space-y-10 md:space-y-0 md:space-x-10">
+      <main
+        id="hero"
+        className="flex-1 flex flex-col md:flex-row items-center justify-center p-10 space-y-10 md:space-y-0 md:space-x-10"
+      >
 
         {/* Left: Hero + Features */}
         <div className="flex-1 flex flex-col justify-center max-w-lg space-y-6">
@@ -36,7 +51,7 @@ function Landing({ onLogin }) {
             Stay connected with friends and family in real-time with a secure and private chat.
           </p>
 
-          {/* CTA Button inside hero */}
+          {/* CTA Button */}
           <button
             onClick={() => scrollToSection("login")}
             className="bg-blue-500 p-3 rounded-lg text-white font-semibold w-40 hover:bg-blue-600 transition"
@@ -44,7 +59,7 @@ function Landing({ onLogin }) {
             Get Started
           </button>
 
-          {/* Feature Cards 2x2 Grid */}
+          {/* Feature Cards */}
           <div id="features" className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
             <div className="bg-gray-800 p-4 rounded shadow-md flex flex-col items-center text-center hover:scale-105 transition-transform">
               <FaComments className="text-blue-400 text-3xl mb-2"/>

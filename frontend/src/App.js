@@ -3,9 +3,13 @@ import Landing from "./pages/Landing";
 import Chat from "./pages/Chat";
 
 function App() {
-  const [user, setUser] = useState("");
+  const [username, setUsername] = useState(""); // store logged-in username
 
-  return user ? <Chat username={user} /> : <Landing onLogin={setUser} />;
+  return username ? (
+    <Chat username={username} /> // pass username to Chat
+  ) : (
+    <Landing onLogin={setUsername} /> // show landing page if not logged in
+  );
 }
 
 export default App;
